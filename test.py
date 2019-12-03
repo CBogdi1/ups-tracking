@@ -1,11 +1,13 @@
 import datetime
 import requests
 
+from enum import Enum
+
 USER_AGENT = ('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 '
               '(KHTML, like Gecko) Chrome/74.0.3729.157 Safari/537.36')
 TRACK_STATUS_URL = "https://www.ups.com/track/api/Track/GetStatus?loc=en_US"
 
-class TrackingStage:
+class TrackingStage(Enum):
     ORDER_RECEIVED = 1
     SHIPPED = 2
     IN_TRANSIT = 3
@@ -14,12 +16,12 @@ class TrackingStage:
     DELIVERED = 10
 
 TRACKING_STAGES = {
-    'cms.stapp.orderReceived': TrackingStage.ORDER_RECEIVED,
-    'cms.stapp.shipped': TrackingStage.SHIPPED,
-    'cms.stapp.inTransit': TrackingStage.IN_TRANSIT,
-    'cms.stapp.delivery': TrackingStage.IN_DELIVERY,
-    'cms.stapp.delAttpted': TrackingStage.DELIVERY_ATTEMPTED,
-    'cms.stapp.delivered': TrackingStage.DELIVERED,
+    'cms.stapp.orderReceived': TrackingStage.ORDER_RECEIVED.value,
+    'cms.stapp.shipped': TrackingStage.SHIPPED.value,
+    'cms.stapp.inTransit': TrackingStage.IN_TRANSIT.value,
+    'cms.stapp.delivery': TrackingStage.IN_DELIVERY.value,
+    'cms.stapp.delAttpted': TrackingStage.DELIVERY_ATTEMPTED.value,
+    'cms.stapp.delivered': TrackingStage.DELIVERED.value,
     None: TrackingStage.IN_TRANSIT
 }
 
@@ -36,10 +38,6 @@ def get_tracking_status(tracking_id: str):
     r.raise_for_status()
 
     return r.json()['trackDetails'][0]['shipmentProgressActivities']
-
-activities = get_tracking_status('1Z0333056857598209')
-
-result = []
 
 def get_activity_status(activity):
     status = (activity['milestone'] or {}).get('name', 'cms.stapp.inTransit')
@@ -68,13 +66,20 @@ def get_activity_location(activity):
 
     return location
 
-for activity in activities:
-    location = get_activity_location(activity)
+def get_shipment_progress(activities):
+    result = []
+    for activity in activities:
+        location = get_activity_location(activity)
 
-    result.append({
-        'stage': get_activity_status(activity),
-        'timestamp': get_activity_timestamp(activity),
-        'city': location['city'],
-        'country': location['country'],
-        'description': activity['activityScan'],
-    })
+        result.append({
+            'stage': get_activity_status(activity),
+            'timestamp': get_activity_timestamp(activity),
+            'city': location['city'],
+            'country': location['country'],
+            'description': activity['activityScan'],
+        })
+    return result
+
+
+activities = get_tracking_status('1Z0333056857598209')
+shipment_progress = get_shipment_progress(activities)
